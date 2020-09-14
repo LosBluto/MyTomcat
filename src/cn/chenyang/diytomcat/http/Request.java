@@ -1,6 +1,6 @@
 package cn.chenyang.diytomcat.http;
 
-import cn.chenyang.diytomcat.MiniBrowser;
+import cn.chenyang.diytomcat.utils.MiniBrowser;
 import cn.hutool.core.util.StrUtil;
 
 import java.io.IOException;
