@@ -6,11 +6,15 @@ import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.date.TimeInterval;
 import cn.hutool.core.util.NetUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.http.HttpUtil;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import sun.plugin2.util.SystemUtil;
+import sun.security.timestamp.TSRequest;
 
+import javax.print.DocFlavor;
+import java.io.ByteArrayOutputStream;
 import java.util.Date;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -40,10 +44,20 @@ public class TestTomcat {
         return MiniBrowser.getContentString(url);
     }
 
+    private byte[] getContentByte(String uri){
+        String url = StrUtil.format("http://{}:{}{}",host,port,uri);
+        return MiniBrowser.getContentBytes(url);
+    }
+
     private String getHttpString(String uri){
         String url = StrUtil.format("http://{}:{}{}",host,port,uri);
         return MiniBrowser.getHttpString(url);
     }
+    private void containAssert(String html,String string){
+        boolean match = StrUtil.containsAny(html,string);
+        Assert.assertTrue(match);
+    }
+
 
     @Test
     public void testHello(){
@@ -88,5 +102,57 @@ public class TestTomcat {
         Assert.assertTrue(duration < 3000);
     }
 
+    @Test
+    public void testaIndex() {
+        String html = getContentString("/a/index.html");
+        Assert.assertEquals(html,"Hello DIY Tomcat from index.html@a");
+    }
+
+    @Test
+    public void testbIndex() {
+        String html = getContentString("/b/index.html");
+        Assert.assertEquals(html,"Hello DIY Tomcat from index.html@b");
+    }
+
+    @Test
+    public void test404(){
+        String response = getHttpString("/not_exist.html");
+        containAssert(response,"HTTP/1.1 404 Not Found");
+    }
+
+    @Test
+    public void test500(){
+        String response = getHttpString("/500.html");
+        containAssert(response, "HTTP/1.1 500 Internal Server Error");
+    }
+
+    @Test
+    public void testaTXT(){
+        String response = getHttpString("/a/a.txt");
+        containAssert(response,"Content-Type: text/plain");
+    }
+
+    @Test
+    public void testPng(){
+        byte[] bytes = getContentByte("/logo.png");
+        int pngLength = 1672;
+        Assert.assertEquals(pngLength,bytes.length);
+    }
+
+    @Test
+    public void testPDF() {
+        String uri = "/etf.pdf";
+        String url = StrUtil.format("http://{}:{}{}", host,port,uri);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        HttpUtil.download(url, baos, true);                 //利用hutool的工具访问
+        int pdfFileLength = 3590775;
+        Assert.assertEquals(pdfFileLength, baos.toByteArray().length);
+    }
+
+    @Test
+    public void testHelloServlet(){
+        String response = getHttpString("/hello");
+        containAssert(response,"Hello DIY Tomcat from HelloServlet");
+    }
 
 }

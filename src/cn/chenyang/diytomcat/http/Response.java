@@ -10,9 +10,10 @@ import java.nio.charset.StandardCharsets;
  * Time: 2020/8/30
  * Description:
  */
-public class Response {
+public class Response extends BaseResponse{
     private StringWriter stringWriter;
     private PrintWriter printWriter;
+    private byte[] body;
     private String contentType;
 
     public Response(){
@@ -21,17 +22,29 @@ public class Response {
         this.contentType = "text/html";
     }
 
+
+    public void setBody(byte[] body) {
+        this.body = body;
+    }
+
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
+    }
+
     public String getContentType() {
         return contentType;
     }
 
-    public PrintWriter getPrintWriter() {
+    public PrintWriter getWriter() {
         return printWriter;
     }
 
     public byte[] getBody() throws UnsupportedEncodingException{
-        String content = stringWriter.toString();
-        return content.getBytes(StandardCharsets.UTF_8);
+        if (body == null) {
+            String content = stringWriter.toString();
+            return content.getBytes(StandardCharsets.UTF_8);
+        }
+        return body;
     }
 
 }

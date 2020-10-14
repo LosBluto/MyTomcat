@@ -123,7 +123,7 @@ public class MiniBrowser {
             printWriter.println(httpRequestString);
             InputStream is = client.getInputStream();
 
-            result = readBytes(is);
+            result = readBytes(is,true);                //会读取文件，持续读取
             client.close();
 
         }catch (Exception e){
@@ -137,7 +137,13 @@ public class MiniBrowser {
         return result;
     }
 
-    public static byte[] readBytes(InputStream is) throws IOException {
+    /**
+     * 读取输入流中的数据
+     * @param is 输入流
+     * @param fully 判断是否需要持续读取，因为传输文件的时候，可能不会以每次1024传输
+     * @return 返回二进制
+     */
+    public static byte[] readBytes(InputStream is,boolean fully) throws IOException {
         int byteSize = 1024;
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         byte[] buffer = new byte[byteSize];
@@ -147,7 +153,7 @@ public class MiniBrowser {
             if (-1 == length)                       //读取结束
                 break;
             baos.write(buffer,0,length);        //把缓存写如输出流中
-            if (length != byteSize)                 //缓存读取长度小于1024则读取完成
+            if (!fully && length != byteSize)                 //缓存读取长度小于1024则读取完成
                 break;
         }
         return baos.toByteArray();
