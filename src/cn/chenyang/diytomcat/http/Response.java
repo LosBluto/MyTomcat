@@ -15,6 +15,7 @@ public class Response extends BaseResponse{
     private PrintWriter printWriter;
     private byte[] body;
     private String contentType;
+    private int status;
 
     public Response(){
         this.stringWriter = new StringWriter();
@@ -22,6 +23,15 @@ public class Response extends BaseResponse{
         this.contentType = "text/html";
     }
 
+    @Override
+    public void setStatus(int status) {
+        this.status = status;
+    }
+
+    @Override
+    public int getStatus() {
+        return status;
+    }
 
     public void setBody(byte[] body) {
         this.body = body;

@@ -3,6 +3,7 @@ package cn.chenyang.diytomcat.catalina;
 
 import cn.chenyang.diytomcat.utils.Constant;
 import cn.chenyang.diytomcat.utils.ServerXmlUtil;
+import cn.hutool.log.LogFactory;
 
 import java.io.File;
 import java.util.HashMap;
@@ -16,8 +17,9 @@ import java.util.Map;
  */
 public class Host {
     private String name;
-    private Map<String,Context> contextMap;
     private Engine engine;
+
+    private Map<String,Context> contextMap;
 
     public Host(String name,Engine engine) {
         this.name = name;
@@ -40,11 +42,28 @@ public class Host {
         return contextMap.get(path);
     }
 
+    public void reload(Context context){
+        LogFactory.get().info("Reloading Context with name [{}] has started", context.getPath());
+        String path = context.getPath();
+        String docBase = context.getDocBase();
+        boolean reloadable = context.isReloadable();
+
+        //关闭为改变的context
+        context.stop();
+        //从host的映射中移除
+        contextMap.remove(path);
+        //增加改变后的context
+        Context newContext = new Context(path,docBase,this,reloadable);
+        //再把新的context加入映射中
+        contextMap.put(newContext.getPath(),newContext);
+        LogFactory.get().info("Reloading Context with name [{}] has completed", context.getPath());
+    }
+
     /*
             扫描配置文件中的context
              */
     private  void scanContextInServerXML(){
-        List<Context> contexts = ServerXmlUtil.getContexts();
+        List<Context> contexts = ServerXmlUtil.getContexts(this);
         for (Context context:contexts){
             contextMap.put(context.getPath(),context);
         }
@@ -72,7 +91,7 @@ public class Host {
         else
             path = "/" + path;
         String docBase = folder.getAbsolutePath();
-        Context context = new Context(path,docBase);
+        Context context = new Context(path,docBase,this,true);
         contextMap.put(path,context);
     }
 }

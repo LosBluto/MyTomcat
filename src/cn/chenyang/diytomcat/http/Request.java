@@ -24,6 +24,7 @@ public class Request extends BaseRequest{
     private Socket socket;
     private Context context;
     private Service service;
+    private String method;
 
     public Request(Socket socket, Service service) throws IOException {
         this.socket = socket;
@@ -31,12 +32,17 @@ public class Request extends BaseRequest{
         parseRequestString();
         if (StrUtil.isEmpty(requestString))             //请求信息为空直接返回
             return;
+        parseMethod();
         parseUri();
         parseContext();
         if (!"/".equals(context.getPath()))             //将uri去除前缀，因为前缀信息已经存入context中
             uri = StrUtil.removePrefix(uri,context.getPath());
         if (StrUtil.isEmpty(uri))                   //如果uri为空
             uri = "/";
+    }
+
+    private void parseMethod(){
+        method = StrUtil.subBefore(requestString," ",false);
     }
 
     /*
@@ -89,5 +95,10 @@ public class Request extends BaseRequest{
 
     public Context getContext() {
         return context;
+    }
+
+    @Override
+    public String getMethod() {
+        return method;
     }
 }

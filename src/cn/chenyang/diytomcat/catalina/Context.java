@@ -1,12 +1,16 @@
 package cn.chenyang.diytomcat.catalina;
 
+import cn.chenyang.diytomcat.classloader.webappClassLoader;
 import cn.chenyang.diytomcat.exception.WebConfigDuplicatedException;
 import cn.chenyang.diytomcat.utils.Constant;
+import cn.chenyang.diytomcat.utils.ContextXmlUtil;
+import cn.chenyang.diytomcat.watcher.ContextFileChangeWatcher;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.date.TimeInterval;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.log.LogFactory;
+import com.sun.xml.internal.bind.v2.TODO;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -25,7 +29,12 @@ public class Context {
     private String docBase;
 
     private File contextWebXmlFile;
+    private webappClassLoader webappClassLoader;            //每个javaweb应用应该对应了一个classloader来加载
 
+
+    private Host host;
+    private boolean reloadable;
+    private ContextFileChangeWatcher contextFileChangeWatcher;  //监听器，监听该Context对应的应用
     /*
     四个映射
      */
@@ -34,14 +43,23 @@ public class Context {
     private Map<String, String> servletName_className;
     private Map<String, String> className_servletName;
 
-    public Context(String path, String docBase) {
+    public Context(String path, String docBase,Host host,boolean reloadable) {
+        this.host = host;
+        this.reloadable = reloadable;
+
         TimeInterval timeInterval = DateUtil.timer();           //计时便于输出日志
+        contextWebXmlFile = new File(docBase, ContextXmlUtil.getWatchedResource());
         this.path = path;
         this.docBase = docBase;
         this.url_servletClassName = new HashMap<>();
         this.url_servletName = new HashMap<>();
         this.servletName_className = new HashMap<>();
         this.className_servletName = new HashMap<>();
+
+        ClassLoader commonClassloader = Thread.currentThread().getContextClassLoader();     //获取在bootstrap中设置的classloader作为父classloader
+        webappClassLoader = new webappClassLoader(docBase,commonClassloader);
+
+        deploy();
         LogFactory.get().info("Deploying web application directory {}", this.docBase);
         LogFactory.get().info("Deployment of web application directory {} has finished in {} ms",
                 this.docBase,timeInterval.intervalMs());
@@ -102,6 +120,52 @@ public class Context {
         checkDuplicated(d, "servlet servlet-class", "servlet 类名重复,请保持其唯一性:{} ");
     }
 
+    public void init(){
+        if(!contextWebXmlFile.exists())     //文件不存在
+            return;
+        try {
+            checkDuplicated();
+        }catch (WebConfigDuplicatedException e){
+            e.printStackTrace();
+            return;
+        }
+        String xml = FileUtil.readUtf8String(contextWebXmlFile);
+        Document d = Jsoup.parse(xml);
+
+        parseServletMapping(d);         //初始化映射
+    }
+
+    /*
+    初始化
+     */
+    private void deploy(){
+        TimeInterval timeInterval = DateUtil.timer();       //计时器
+        LogFactory.get().info("Deploying web application directory {}",docBase);
+        init();
+        if (reloadable){
+            contextFileChangeWatcher = new ContextFileChangeWatcher(this);
+            contextFileChangeWatcher.start();           //开启监听
+        }
+        LogFactory.get().info("Deployment of web application directory {} has finished in {} ms",docBase,timeInterval.intervalMs());
+    }
+
+    /*
+        停止，停止该应用的类加载器工作和监听器工作
+     */
+    public void stop(){
+        webappClassLoader.stop();
+        contextFileChangeWatcher.stop();
+    }
+
+    public void reload(){
+        host.reload(this);
+    }
+
+    public String getServletClassName(String uri){
+        return url_servletClassName.get(uri);
+    }
+
+
     public void setPath(String path) {
         this.path = path;
     }
@@ -116,5 +180,17 @@ public class Context {
 
     public String getDocBase() {
         return docBase;
+    }
+
+    public cn.chenyang.diytomcat.classloader.webappClassLoader getWebappClassLoader() {
+        return webappClassLoader;
+    }
+
+    public void setReloadable(boolean reloadable) {
+        this.reloadable = reloadable;
+    }
+
+    public boolean isReloadable() {
+        return reloadable;
     }
 }

@@ -12,6 +12,7 @@ import java.util.List;
 public class Engine {
     private String defaultHost;
     private Service service;
+
     private List<Host> hosts;
 
     public Engine(Service service) {

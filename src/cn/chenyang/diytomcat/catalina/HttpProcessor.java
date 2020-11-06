@@ -1,5 +1,7 @@
 package cn.chenyang.diytomcat.catalina;
 
+import cn.chenyang.diytomcat.catalina.servlets.DefaultServlet;
+import cn.chenyang.diytomcat.catalina.servlets.InvokerServlet;
 import cn.chenyang.diytomcat.webappservlet.HelloServlet;
 import cn.chenyang.diytomcat.http.Request;
 import cn.chenyang.diytomcat.http.Response;
@@ -8,7 +10,10 @@ import cn.chenyang.diytomcat.utils.WebXmlUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.thread.ThreadUtil;
 import cn.hutool.core.util.ArrayUtil;
+import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.log.LogFactory;
+import sun.nio.cs.StreamDecoder;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,38 +35,22 @@ public class HttpProcessor {
             System.out.println(uri);
 
             Context context = request.getContext();
+            String servletClassName = context.getServletClassName(uri);         //从context中获取servlet的位置
 
-            if("/500.html".equals(uri)){                        //自己制作的错误
-                throw new Exception("this is a deliberately created exception");
-            }
-
-            if ("/hello".equals(uri)){
-                HelloServlet helloServlet = new HelloServlet();
-                helloServlet.doGet(request,response);
+            if (null != servletClassName) {                   //可以映射到servlet中,则利用反射机制
+                LogFactory.get().info("servletClassName:"+servletClassName);
+                InvokerServlet.getInstance().service(request,response);         //处理自定义的servlet
             }else {
-                if ("/".equals(uri)) {                                  //无uri
-                    //                                String html = "Hello DIY Tomcat from how2j.cn";
-                    uri = WebXmlUtil.getWelComeFile(context);
-                }                                                   //有uri寻找相应的文件
-                String fileName = StrUtil.removePrefix(uri, "/");
-                File file = FileUtil.file(context.getDocBase(), fileName);
-
-                if (file.exists()) {
-                    String extName = FileUtil.extName(file);        //获取后缀
-                    String mimeType = WebXmlUtil.getMimeType(extName);
-                    response.setContentType(mimeType);
-
-                    //                                    String fileContent = FileUtil.readUtf8String(file);
-                    //                                    response.getPrintWriter().println(fileContent);
-
-                    response.setBody(FileUtil.readBytes(file));                 //直接把file读取为二进制
-
-                    if (fileName.equals("timeConsume.html"))                    //模拟耗时，三秒延迟
-                        ThreadUtil.sleep(1000);
-                } else
-                    handle404(s, uri);
+                DefaultServlet.getInstance().service(request,response);         //处理默认的servlet
             }
-            handle200(s, response);
+
+            if (Constant.CODE_200 == response.getStatus()){
+                handle200(s,response);
+            }
+            if (Constant.CODE_404 == response.getStatus()){
+                handle404(s,uri);
+            }
+
         }catch (Exception e){
             e.printStackTrace();
             handle500(s,e);
